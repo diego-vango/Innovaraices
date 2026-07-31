@@ -5,8 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Property, FilterState, ActiveTab, GoogleSheetsConfig, Appointment } from './types';
-import { getStoredProperties, saveStoredProperties, getSheetsConfig, recalculateCLPPrices, syncWithGoogleSheets } from './services/sheetsService';
-import { getCachedAccessToken } from './services/googleAuthService';
+import { getStoredProperties, fetchPropertiesFromAppsScript } from './services/sheetsService';
 import { fetchCurrentUFRate, UFData, FALLBACK_UF_RATE } from './services/ufService';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -22,7 +21,10 @@ import {
   Grid,
   Building2,
   Search,
-  Layers
+  Layers,
+  Loader2,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
 export default function App() {
@@ -37,7 +39,8 @@ export default function App() {
 
   // Properties State
   const [properties, setProperties] = useState<Property[]>([]);
-  const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(getSheetsConfig());
+  const [isLoadingProperties, setIsLoadingProperties] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Property Modal & Appointment State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -47,40 +50,51 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'grid' | 'map' | 'split'>('split');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  // Fetch Live UF and Load Properties with Automatic Google Sheets Syncing in background
+  // Cargar propiedades asíncronamente directamente desde Google Apps Script Endpoint
+  const loadProperties = async () => {
+    setIsLoadingProperties(true);
+    setFetchError(null);
+
+    try {
+      const uf = await fetchCurrentUFRate();
+      setUfData(uf);
+
+      const apiProps = await fetchPropertiesFromAppsScript(uf.value);
+      setProperties(apiProps);
+    } catch (err: any) {
+      console.error('Error al conectar con Google Apps Script:', err);
+      // Fallback a almacenamiento local / cache
+      const fallbackProps = getStoredProperties(ufData.value);
+      setProperties(fallbackProps);
+      setFetchError(err.message || 'No se pudo conectar a la API de Google Apps Script. Se están mostrando los datos en caché.');
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  };
+
   useEffect(() => {
-    fetchCurrentUFRate().then(data => {
-      setUfData(data);
-      const loaded = getStoredProperties(data.value);
-      setProperties(loaded);
+    let isMounted = true;
 
-      // Attempt background live fetch from Google Sheet
-      const token = getCachedAccessToken();
-      syncWithGoogleSheets(sheetsConfig, token).then(res => {
-        if (res.success && res.properties && res.properties.length > 0) {
-          const recalculated = recalculateCLPPrices(res.properties, data.value);
-          setProperties(recalculated);
-          saveStoredProperties(recalculated);
-        }
-      });
-    });
+    loadProperties();
 
-    // Periodic Background Sync every 30s
-    const syncTimer = setInterval(() => {
-      const token = getCachedAccessToken();
-      syncWithGoogleSheets(sheetsConfig, token).then(res => {
-        if (res.success && res.properties && res.properties.length > 0) {
-          setProperties(prev => {
-            const recalculated = recalculateCLPPrices(res.properties!, ufData.value);
-            saveStoredProperties(recalculated);
-            return recalculated;
-          });
+    // Sincronización automática periódica en segundo plano cada 30 segundos
+    const syncTimer = setInterval(async () => {
+      try {
+        const apiProps = await fetchPropertiesFromAppsScript(ufData.value);
+        if (isMounted && apiProps && apiProps.length > 0) {
+          setProperties(apiProps);
+          setFetchError(null);
         }
-      });
+      } catch (e) {
+        console.warn('Background sync check:', e);
+      }
     }, 30000);
 
-    return () => clearInterval(syncTimer);
-  }, [sheetsConfig]);
+    return () => {
+      isMounted = false;
+      clearInterval(syncTimer);
+    };
+  }, []);
 
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
@@ -190,16 +204,46 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* TAB 1: INICIO */}
-        {activeTab === 'inicio' && (
-          <HomeHero
-            properties={properties}
-            onSelectProperty={setSelectedProperty}
-            onScheduleVisit={handleScheduleVisit}
-            setActiveTab={setActiveTab}
-            ufRate={ufData.value}
-          />
+        {/* Error Notification Banner if Network or Apps Script Error occurs */}
+        {fetchError && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <div>
+                <span className="font-bold">Aviso de sincronización: </span>
+                <span>{fetchError}</span>
+              </div>
+            </div>
+            <button
+              onClick={loadProperties}
+              className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all flex-shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Reintentar
+            </button>
+          </div>
         )}
+
+        {/* Global Loader when fetching properties initially */}
+        {isLoadingProperties && properties.length === 0 ? (
+          <div className="py-24 text-center space-y-4 bg-white border border-slate-200 rounded-2xl shadow-sm my-8">
+            <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto" />
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-slate-900">Cargando datos desde Google Sheets...</h3>
+              <p className="text-xs text-slate-500">Obteniendo catálogo de propiedades y proyectos en tiempo real.</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* TAB 1: INICIO */}
+            {activeTab === 'inicio' && (
+              <HomeHero
+                properties={properties}
+                onSelectProperty={setSelectedProperty}
+                onScheduleVisit={handleScheduleVisit}
+                setActiveTab={setActiveTab}
+                ufRate={ufData.value}
+              />
+            )}
 
         {/* TAB 2: PROPIEDADES */}
         {activeTab === 'propiedades' && (
@@ -349,6 +393,8 @@ export default function App() {
         {/* TAB 5: CONTACTO */}
         {activeTab === 'contacto' && (
           <GeneralContactForm />
+        )}
+          </>
         )}
       </main>
 

@@ -82,6 +82,9 @@ export const saveSheetsConfig = (config: GoogleSheetsConfig): void => {
   }
 };
 
+// URL Oficial del Web App Endpoint de Google Apps Script
+export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzxK4DvB2W87AjC9aMFomG_0c8g7akrUt6g8FXonBye_uxg0Cdw4Yhb_iLFmH7_5pDm/exec';
+
 // Helper function to normalize keys for key matching (stripping accents, special chars)
 const normalizeKey = (str: string): string => {
   return str
@@ -89,6 +92,173 @@ const normalizeKey = (str: string): string => {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9_]/g, '');
+};
+
+// Convierte un objeto fila genérico de Google Apps Script / Google Sheets en una propiedad tipada
+export const mapRowToProperty = (rowObj: Record<string, any>, index: number = 0, ufRate: number = FALLBACK_UF_RATE): Property => {
+  // Crear un mapa con claves normalizadas
+  const normalizedRowObj: Record<string, any> = {};
+  Object.keys(rowObj).forEach(k => {
+    normalizedRowObj[k] = rowObj[k];
+    normalizedRowObj[normalizeKey(k)] = rowObj[k];
+  });
+
+  const getValue = (...keys: string[]): any => {
+    for (const k of keys) {
+      if (normalizedRowObj[k] !== undefined && normalizedRowObj[k] !== null && normalizedRowObj[k] !== '') {
+        return normalizedRowObj[k];
+      }
+      const norm = normalizeKey(k);
+      if (normalizedRowObj[norm] !== undefined && normalizedRowObj[norm] !== null && normalizedRowObj[norm] !== '') {
+        return normalizedRowObj[norm];
+      }
+    }
+    return '';
+  };
+
+  // 1. Identificador Único ID
+  const idVal = String(getValue('ID', 'Id', 'id', 'Ref', 'Codigo') || `INV-${100 + index}`).trim();
+
+  // 2. Precios y Gastos
+  const rawPriceUF = getValue('Precio_UF', 'PrecioUF', 'Price_UF', 'Price', 'Precio');
+  const priceUF = typeof rawPriceUF === 'number'
+    ? rawPriceUF
+    : parseFloat(String(rawPriceUF).replace(/\./g, '').replace(',', '.')) || 5000;
+
+  const rawExpenses = getValue('Gastos_Comunes', 'GastosComunes', 'Expenses_CLP');
+  const expensesCLP = typeof rawExpenses === 'number'
+    ? rawExpenses
+    : parseInt(String(rawExpenses).replace(/\D/g, ''), 10) || undefined;
+
+  // 3. Galería de imágenes (Galeria_Imagen_1 .. Galeria_Imagen_10)
+  const galeria: string[] = [];
+  for (let g = 1; g <= 10; g++) {
+    const gImg = String(getValue(`Galeria_Imagen_${g}`, `GaleriaImagen${g}`, `Gallery_Image_${g}`, `Gallery_${g}`)).trim();
+    if (gImg && gImg !== 'undefined' && gImg !== 'null' && !galeria.includes(gImg)) {
+      galeria.push(gImg);
+    }
+  }
+
+  // Imagen principal
+  const mainImg = String(getValue('Imagen_Principal', 'ImagenPrincipal', 'Imagen', 'Foto_Principal', 'Image') || '').trim();
+
+  // Consolidar lista completa de imágenes para componentes que leen `images`
+  const imagesList: string[] = [];
+  if (mainImg) {
+    imagesList.push(mainImg);
+  }
+  galeria.forEach(img => {
+    if (!imagesList.includes(img)) {
+      imagesList.push(img);
+    }
+  });
+
+  if (imagesList.length === 0) {
+    imagesList.push('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=1200');
+  }
+
+  // 4. Puntos destacados / Características
+  const rawPuntos = getValue('Puntos_Destacados', 'PuntosDestacados', 'Características', 'Caracteristicas', 'Highlights');
+  let featuresArr: string[] = [];
+  if (Array.isArray(rawPuntos)) {
+    featuresArr = rawPuntos.map(p => String(p).trim()).filter(Boolean);
+  } else if (rawPuntos) {
+    featuresArr = String(rawPuntos).split(/[,|;]/).map(f => f.trim()).filter(Boolean);
+  }
+  if (featuresArr.length === 0) {
+    featuresArr = ['Excelente Ubicación', 'Terminaciones de Lujo'];
+  }
+
+  // 5. Proyecto y Estado
+  const rawIsProject = String(getValue('Es_Proyecto', 'EsProyecto', 'IsProject', 'Is_Project')).toLowerCase().trim();
+  const isProject = rawIsProject === 'si' || rawIsProject === 'true' || rawIsProject === '1' || rawIsProject === 'yes';
+
+  const rawFeatured = String(getValue('Destacado', 'Featured')).toLowerCase().trim();
+  const featured = rawFeatured === 'si' || rawFeatured === 'true' || rawFeatured === '1';
+
+  const property: Property = {
+    id: idVal,
+    title: String(getValue('Título', 'Titulo', 'Title', 'Nombre') || `Propiedad ${idVal}`).trim(),
+    operation: (String(getValue('Operación', 'Operacion', 'Operation') || 'Venta').trim()) as OperationType,
+    type: (String(getValue('Categoría', 'Categoria', 'Tipo', 'Category') || 'Departamento').trim()) as PropertyCategory,
+    priceUF: priceUF,
+    priceCLP: Math.round(priceUF * ufRate),
+    expensesCLP: expensesCLP,
+    region: String(getValue('Región', 'Region') || 'Región Metropolitana').trim(),
+    comuna: String(getValue('Comuna', 'Ubicación', 'Ubicacion') || 'Santiago').trim(),
+    address: String(getValue('Ubicación', 'Ubicacion', 'Dirección', 'Direccion', 'Address') || 'Av. Principal').trim(),
+    bedrooms: parseInt(String(getValue('Dormitorios', 'Bedrooms', 'Habitaciones') || '2'), 10) || 2,
+    bathrooms: parseInt(String(getValue('Baños', 'Banos', 'Bathrooms') || '2'), 10) || 2,
+    surfaceBuilt: parseInt(String(getValue('M2_Utiles', 'M2Utiles', 'Superficie_Util') || '80'), 10) || 80,
+    surfaceTotal: parseInt(String(getValue('M2_Totales', 'M2Totales', 'Superficie_Total') || '100'), 10) || 100,
+    lat: parseFloat(String(getValue('Latitud', 'Lat') || '-33.4168')) || -33.4168,
+    lng: parseFloat(String(getValue('Longitud', 'Lng') || '-70.5841')) || -70.5841,
+    images: imagesList,
+    galeria: galeria,
+    videoUrl: String(getValue('Video_URL', 'VideoUrl', 'Video') || '').trim() || undefined,
+    featured: featured,
+    isProject: isProject,
+    projectDeliveryDate: String(getValue('Fecha_Entrega', 'FechaEntrega', 'Entrega_Proyecto') || '').trim() || undefined,
+    status: (String(getValue('Estado', 'Status') || 'Disponible').trim()) as PropertyStatus,
+    description: String(getValue('Descripción', 'Descripcion', 'Description') || 'Excelente propiedad en zona residencial.').trim(),
+    features: featuresArr,
+    agent: DEFAULT_AGENTS[index % DEFAULT_AGENTS.length],
+  };
+
+  return property;
+};
+
+// Función asíncrona principal para obtener propiedades directamente desde el endpoint de Google Apps Script
+export const fetchPropertiesFromAppsScript = async (ufRate: number = FALLBACK_UF_RATE): Promise<Property[]> => {
+  const response = await fetch(APPS_SCRIPT_URL, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error HTTP de Google Apps Script: status ${response.status}`);
+  }
+
+  const rawData = await response.json();
+  let itemsArray: any[] = [];
+
+  if (Array.isArray(rawData)) {
+    // Si la API devuelve un arreglo directo
+    if (rawData.length > 0 && Array.isArray(rawData[0])) {
+      // Si devuelve una matriz 2D [[encabezados...], [fila1...], ...]
+      const headers = rawData[0].map((h: any) => String(h).trim());
+      for (let i = 1; i < rawData.length; i++) {
+        const row = rawData[i];
+        if (!row || row.length === 0) continue;
+        const rowObj: Record<string, any> = {};
+        headers.forEach((h: string, idx: number) => {
+          rowObj[h] = row[idx] !== undefined ? row[idx] : '';
+        });
+        itemsArray.push(rowObj);
+      }
+    } else {
+      // Arreglo de objetos JSON
+      itemsArray = rawData;
+    }
+  } else if (rawData && typeof rawData === 'object') {
+    // Si viene dentro de { data: [...] } o { properties: [...] }
+    itemsArray = rawData.data || rawData.properties || rawData.items || rawData.result || [];
+  }
+
+  if (!Array.isArray(itemsArray) || itemsArray.length === 0) {
+    throw new Error('El endpoint de Google Apps Script no devolvió un arreglo válido de propiedades.');
+  }
+
+  const mappedProperties: Property[] = itemsArray.map((item, idx) => mapRowToProperty(item, idx, ufRate));
+
+  // Guardar copia local de respaldo
+  if (mappedProperties.length > 0) {
+    saveStoredProperties(mappedProperties);
+  }
+
+  return mappedProperties;
 };
 
 // Helper function to split a CSV line into cells respecting quotes and delimiters

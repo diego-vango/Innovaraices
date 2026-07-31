@@ -30,6 +30,7 @@ export interface Property {
   surfaceBuilt: number; // m² útiles/construidos
   surfaceTotal: number; // m² totales
   images: string[];
+  galeria?: string[];
   videoUrl?: string;
   featured: boolean;
   isProject?: boolean;
