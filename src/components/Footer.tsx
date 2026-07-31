@@ -26,7 +26,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md bg-white p-0.5 border border-slate-700 flex-shrink-0">
                 <img
-                  src="/src/assets/images/innova_raices_logo_1785528381555.jpg"
+                  src="/logo.jpg"
                   alt="Innova Raíces Logo"
                   className="w-full h-full object-cover rounded-lg"
                   referrerPolicy="no-referrer"

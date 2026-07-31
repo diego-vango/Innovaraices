@@ -96,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md shadow-sky-600/20 group-hover:scale-105 transition-transform bg-white border border-slate-200 p-0.5 flex-shrink-0">
               <img
-                src="/src/assets/images/innova_raices_logo_1785528381555.jpg"
+                src="/logo.jpg"
                 alt="Innova Raíces Logo"
                 className="w-full h-full object-cover rounded-lg"
                 referrerPolicy="no-referrer"
