@@ -39,7 +39,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   };
 
   const waMessage = `Me interesa esta propiedad, quisiera más información al respecto: ${property.title} (Ref: ${property.id})`;
-  const waUrl = `https://wa.me/56912345678?text=${encodeURIComponent(waMessage)}`;
+  const waUrl = `https://wa.me/56974747910?text=${encodeURIComponent(waMessage)}`;
 
   return (
     <div className="group bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full">

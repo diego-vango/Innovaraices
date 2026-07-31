@@ -145,7 +145,7 @@ export const VirtualAppointmentSection: React.FC<VirtualAppointmentSectionProps>
 
           <div className="flex flex-wrap gap-3 pt-2">
             <a
-              href={`https://wa.me/56912345678?text=${encodeURIComponent(waConfirmMessage)}`}
+              href={`https://wa.me/56974747910?text=${encodeURIComponent(waConfirmMessage)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"

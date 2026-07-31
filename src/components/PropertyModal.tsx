@@ -48,7 +48,7 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
   const monthlyCLP = monthlyUF * ufRate;
 
   const waMessage = `Me interesa esta propiedad, quisiera más información al respecto: ${property.title} (Ref: ${property.id})`;
-  const waUrl = `https://wa.me/56912345678?text=${encodeURIComponent(waMessage)}`;
+  const waUrl = `https://wa.me/56974747910?text=${encodeURIComponent(waMessage)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm overflow-y-auto animate-in fade-in">

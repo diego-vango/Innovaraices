@@ -69,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="flex items-center gap-4">
             <a
-              href="https://wa.me/56912345678?text=Hola%20Innova%20Ra%C3%ADces,%20deseo%20hacer%20una%20consulta%20inmobiliaria."
+              href="https://wa.me/56974747910?text=Hola%20Innova%20Ra%C3%ADces,%20deseo%20hacer%20una%20consulta%20inmobiliaria."
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
@@ -77,10 +77,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <MessageCircle className="w-3.5 h-3.5" /> WhatsApp Directo
             </a>
             <a
-              href="tel:+56912345678"
+              href="tel:+56974747910"
               className="hidden sm:flex items-center gap-1 text-slate-300 hover:text-white transition-colors"
             >
-              <Phone className="w-3.5 h-3.5" /> +56 9 1234 5678
+              <Phone className="w-3.5 h-3.5" /> +56 9 7474 7910
             </a>
           </div>
         </div>
@@ -94,8 +94,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleTabClick('inicio')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-10 h-10 bg-sky-600 rounded-lg flex items-center justify-center shadow-md shadow-sky-600/20 group-hover:bg-sky-700 transition-colors">
-              <div className="w-4 h-4 border-2 border-white rotate-45"></div>
+            <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md shadow-sky-600/20 group-hover:scale-105 transition-transform bg-white border border-slate-200 p-0.5 flex-shrink-0">
+              <img
+                src="/src/assets/images/innova_raices_logo_1785528381555.jpg"
+                alt="Innova Raíces Logo"
+                className="w-full h-full object-cover rounded-lg"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">

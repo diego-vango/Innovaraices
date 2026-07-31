@@ -228,8 +228,8 @@ export default function App() {
           <div className="py-24 text-center space-y-4 bg-white border border-slate-200 rounded-2xl shadow-sm my-8">
             <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto" />
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-900">Cargando datos desde Google Sheets...</h3>
-              <p className="text-xs text-slate-500">Obteniendo catálogo de propiedades y proyectos en tiempo real.</p>
+              <h3 className="text-base font-bold text-slate-900">Cargando propiedades...</h3>
+              <p className="text-xs text-slate-500">Obteniendo catálogo de propiedades y proyectos actualizados en tiempo real.</p>
             </div>
           </div>
         ) : (

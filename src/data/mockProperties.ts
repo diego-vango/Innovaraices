@@ -5,24 +5,24 @@ export const UF_RATE_CLP = FALLBACK_UF_RATE; // Valor actual UF en CLP (~38.920)
 
 export const DEFAULT_AGENTS = [
   {
+    name: 'Diego Trino',
+    role: 'Asesor Inmobiliario Senior - Innova Raíces',
+    phone: '+56 9 7474 7910',
+    email: 'diego@somostrino.cl',
+    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
+  },
+  {
     name: 'Camila Valenzuela',
     role: 'Asesora Inmobiliaria Senior - Santiago',
-    phone: '+56 9 8765 4321',
-    email: 'cvalenzuela@innovaraices.cl',
+    phone: '+56 9 7474 7910',
+    email: 'diego@somostrino.cl',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
   },
   {
     name: 'Gonzalo Morales',
     role: 'Especialista en Propiedades de Lujo - Quinta Región',
-    phone: '+56 9 7654 3210',
-    email: 'gmorales@innovaraices.cl',
-    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    name: 'Francisca Lagos',
-    role: 'Consultora Inmobiliaria Sur de Chile',
-    phone: '+56 9 6543 2109',
-    email: 'flagos@innovaraices.cl',
+    phone: '+56 9 7474 7910',
+    email: 'diego@somostrino.cl',
     avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=300',
   },
 ];

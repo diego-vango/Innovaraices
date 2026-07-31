@@ -27,7 +27,7 @@ export const GeneralContactForm: React.FC = () => {
   };
 
   const waGeneralMsg = `Hola Innova Raíces, mi nombre es ${formData.name || 'Cliente'}. Quisiera consultar de manera general sobre: ${formData.intent} en ${formData.regionInterest}. ${formData.message}`;
-  const waGeneralUrl = `https://wa.me/56912345678?text=${encodeURIComponent(waGeneralMsg)}`;
+  const waGeneralUrl = `https://wa.me/56974747910?text=${encodeURIComponent(waGeneralMsg)}`;
 
   return (
     <section className="py-8 my-4">
@@ -68,7 +68,7 @@ export const GeneralContactForm: React.FC = () => {
                 <Phone className="w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">Atención Telefónica & Email</h4>
-                  <p className="text-xs text-slate-500">+56 9 1234 5678 • contacto@innovaraices.cl</p>
+                  <p className="text-xs text-slate-500">+56 9 7474 7910 • diego@somostrino.cl</p>
                 </div>
               </div>
             </div>
