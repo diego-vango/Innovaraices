@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Leaflet Custom Popup & Marker Styles */
+.leaflet-popup-content-wrapper {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  padding: 4px !important;
+}
+
+.leaflet-popup-tip {
+  background-color: #0f172a !important;
+  border: 1px solid #334155 !important;
+}
+
+.custom-map-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Scrollbar utilities */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

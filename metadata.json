@@ -1,0 +1,6 @@
+{
+  "name": "Innova Raíces - Corredora de Propiedades",
+  "description": "Plataforma inmobiliaria moderna con catálogo interactivo, mapa en tiempo real, sincronización con Google Sheets, agendamiento de citas virtuales y contacto directo vía WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
