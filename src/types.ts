@@ -80,4 +80,4 @@ export interface GoogleSheetsConfig {
   errorMessage?: string;
 }
 
-export type ActiveTab = 'inicio' | 'propiedades' | 'proyectos' | 'agendar' | 'sheets' | 'contacto';
+export type ActiveTab = 'inicio' | 'propiedades' | 'proyectos' | 'agendar' | 'contacto';

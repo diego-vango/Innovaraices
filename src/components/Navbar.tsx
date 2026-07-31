@@ -4,15 +4,13 @@ import {
   Home,
   Building2,
   Calendar,
-  FileSpreadsheet,
   Mail,
   Menu,
   X,
   Phone,
   MessageCircle,
   Compass,
-  MapPin,
-  RefreshCcw
+  MapPin
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -37,7 +35,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'propiedades', label: 'Propiedades', icon: Building2, badge: `${propertyCount}` },
     { id: 'proyectos', label: 'Proyectos Nuevos', icon: Compass },
     { id: 'agendar', label: 'Cita Virtual', icon: Calendar },
-    { id: 'sheets', label: 'Administración', icon: FileSpreadsheet },
     { id: 'contacto', label: 'Contacto', icon: Mail },
   ];
 

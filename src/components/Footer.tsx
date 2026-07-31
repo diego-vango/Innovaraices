@@ -112,10 +112,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
           <div>
             © {new Date().getFullYear()} Innova Raíces - Gestión Inmobiliaria. Todos los derechos reservados.
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setActiveTab('sheets')} className="hover:text-sky-400 transition-colors flex items-center gap-1">
-              <FileSpreadsheet className="w-3.5 h-3.5 text-sky-500" /> Acceso Administración
-            </button>
+          <div className="flex items-center gap-4 text-slate-500">
+            <span>Gestión Inmobiliaria Integrada</span>
           </div>
         </div>
       </div>

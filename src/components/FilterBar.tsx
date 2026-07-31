@@ -138,9 +138,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         {propertyTypes.map(type => (
           <button
             key={type}
-            onClick={() => setFilters(prev => ({ ...prev, type }))}
+            onClick={() => setFilters(prev => ({ ...prev, propertyType: type }))}
             className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap transition-all ${
-              filters.type === type
+              filters.propertyType === type
                 ? 'bg-slate-900 text-white font-bold'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
             }`}

@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Property, FilterState, ActiveTab, GoogleSheetsConfig, Appointment } from './types';
-import { getStoredProperties, saveStoredProperties, getSheetsConfig, recalculateCLPPrices } from './services/sheetsService';
+import { getStoredProperties, saveStoredProperties, getSheetsConfig, recalculateCLPPrices, syncWithGoogleSheets } from './services/sheetsService';
+import { getCachedAccessToken } from './services/googleAuthService';
 import { fetchCurrentUFRate, UFData, FALLBACK_UF_RATE } from './services/ufService';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -15,7 +16,6 @@ import { PropertyModal } from './components/PropertyModal';
 import { FilterBar } from './components/FilterBar';
 import { InteractiveMap } from './components/InteractiveMap';
 import { VirtualAppointmentSection } from './components/VirtualAppointmentSection';
-import { GoogleSheetsSyncPanel } from './components/GoogleSheetsSyncPanel';
 import { GeneralContactForm } from './components/GeneralContactForm';
 import {
   Map,
@@ -47,14 +47,40 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'grid' | 'map' | 'split'>('split');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  // Fetch Live UF and Load Properties
+  // Fetch Live UF and Load Properties with Automatic Google Sheets Syncing in background
   useEffect(() => {
     fetchCurrentUFRate().then(data => {
       setUfData(data);
       const loaded = getStoredProperties(data.value);
       setProperties(loaded);
+
+      // Attempt background live fetch from Google Sheet
+      const token = getCachedAccessToken();
+      syncWithGoogleSheets(sheetsConfig, token).then(res => {
+        if (res.success && res.properties && res.properties.length > 0) {
+          const recalculated = recalculateCLPPrices(res.properties, data.value);
+          setProperties(recalculated);
+          saveStoredProperties(recalculated);
+        }
+      });
     });
-  }, []);
+
+    // Periodic Background Sync every 30s
+    const syncTimer = setInterval(() => {
+      const token = getCachedAccessToken();
+      syncWithGoogleSheets(sheetsConfig, token).then(res => {
+        if (res.success && res.properties && res.properties.length > 0) {
+          setProperties(prev => {
+            const recalculated = recalculateCLPPrices(res.properties!, ufData.value);
+            saveStoredProperties(recalculated);
+            return recalculated;
+          });
+        }
+      });
+    }, 30000);
+
+    return () => clearInterval(syncTimer);
+  }, [sheetsConfig]);
 
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
@@ -86,35 +112,41 @@ export default function App() {
   const filteredProperties = useMemo(() => {
     return properties.filter(p => {
       if (filters.searchQuery) {
-        const q = filters.searchQuery.toLowerCase();
+        const q = filters.searchQuery.toLowerCase().trim();
         const matchesTitle = p.title.toLowerCase().includes(q);
         const matchesId = p.id.toLowerCase().includes(q);
         const matchesAddr = p.address.toLowerCase().includes(q);
         const matchesComuna = p.comuna.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesId && !matchesAddr && !matchesComuna) return false;
+        const matchesRegion = p.region.toLowerCase().includes(q);
+        const matchesType = p.type.toLowerCase().includes(q);
+        const matchesDesc = p.description.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesId && !matchesAddr && !matchesComuna && !matchesRegion && !matchesType && !matchesDesc) return false;
       }
 
       if (filters.operation !== 'Todos' && p.operation !== filters.operation) return false;
       if (filters.propertyType !== 'Todos' && p.type !== filters.propertyType) return false;
       if (filters.region !== 'Todas' && p.region !== filters.region) return false;
       if (filters.comuna !== 'Todas' && p.comuna !== filters.comuna) return false;
-      if (p.priceUF > filters.maxPriceUF) return false;
+      if (filters.maxPriceUF > 0 && p.priceUF > filters.maxPriceUF) return false;
       if (filters.minPriceUF > 0 && p.priceUF < filters.minPriceUF) return false;
 
       if (filters.bedrooms !== 'Todos') {
         const minBeds = parseInt(filters.bedrooms, 10);
-        if (p.bedrooms < minBeds) return false;
+        if (!isNaN(minBeds) && p.bedrooms < minBeds) return false;
       }
 
       if (filters.bathrooms !== 'Todos') {
         const minBaths = parseInt(filters.bathrooms, 10);
-        if (p.bathrooms < minBaths) return false;
+        if (!isNaN(minBaths) && p.bathrooms < minBaths) return false;
       }
 
       if (filters.isProjectOnly && !p.isProject) return false;
 
       if (filters.features.length > 0) {
-        const hasAllFeatures = filters.features.every(f => p.features.includes(f));
+        const hasAllFeatures = filters.features.every(f => 
+          p.features.some(pf => pf.toLowerCase().includes(f.toLowerCase())) ||
+          p.description.toLowerCase().includes(f.toLowerCase())
+        );
         if (!hasAllFeatures) return false;
       }
 
@@ -184,7 +216,7 @@ export default function App() {
               </div>
 
               {/* View Switcher */}
-              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 self-start sm:self-auto shadow-sm">
+              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
                 <button
                   onClick={() => setViewMode('split')}
                   className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
@@ -314,22 +346,7 @@ export default function App() {
           />
         )}
 
-        {/* TAB 5: GOOGLE SHEETS ADMIN */}
-        {activeTab === 'sheets' && (
-          <GoogleSheetsSyncPanel
-            properties={properties}
-            onPropertiesUpdated={(updated) => {
-              const recalculated = recalculateCLPPrices(updated, ufData.value);
-              setProperties(recalculated);
-              saveStoredProperties(recalculated);
-            }}
-            sheetsConfig={sheetsConfig}
-            onConfigUpdated={setSheetsConfig}
-            ufRate={ufData.value}
-          />
-        )}
-
-        {/* TAB 6: CONTACTO */}
+        {/* TAB 5: CONTACTO */}
         {activeTab === 'contacto' && (
           <GeneralContactForm />
         )}

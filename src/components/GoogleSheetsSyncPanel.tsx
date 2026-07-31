@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Property, GoogleSheetsConfig } from '../types';
 import {
   exportPropertiesToCSV,
   saveStoredProperties,
   saveSheetsConfig,
-  syncWithGoogleSheets
+  syncWithGoogleSheets,
+  createGoogleSheetInDrive
 } from '../services/sheetsService';
+import {
+  signInWithGoogle,
+  subscribeAuthState,
+  getCachedAccessToken,
+  logoutGoogle
+} from '../services/googleAuthService';
+import { User } from 'firebase/auth';
 import { formatCLP, formatUF } from '../services/ufService';
 import {
   FileSpreadsheet,
@@ -20,7 +28,11 @@ import {
   Image as ImageIcon,
   Video,
   X,
-  Save
+  Save,
+  ExternalLink,
+  Sparkles,
+  UserCheck,
+  LogOut
 } from 'lucide-react';
 
 interface GoogleSheetsSyncPanelProps {
@@ -40,16 +52,69 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
 }) => {
   const [sheetUrl, setSheetUrl] = useState(sheetsConfig.sheetUrl);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedTemplate, setCopiedTemplate] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Editing Property State
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
 
+  useEffect(() => {
+    const unsub = subscribeAuthState((u) => setCurrentUser(u));
+    return () => unsub();
+  }, []);
+
+  const handleCreateAutoSheet = async () => {
+    setIsCreatingSheet(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      let token = getCachedAccessToken();
+      if (!token || !currentUser) {
+        const authRes = await signInWithGoogle();
+        token = authRes.accessToken;
+        setCurrentUser(authRes.user);
+      }
+
+      if (!token) {
+        throw new Error('No se pudo autenticar con Google. Por favor reintenta.');
+      }
+
+      const { spreadsheetId, spreadsheetUrl } = await createGoogleSheetInDrive(token, properties);
+
+      setSheetUrl(spreadsheetUrl);
+
+      const updatedConfig: GoogleSheetsConfig = {
+        ...sheetsConfig,
+        sheetUrl: spreadsheetUrl,
+        sheetId: spreadsheetId,
+        lastSyncedAt: new Date().toISOString(),
+        syncStatus: 'success',
+      };
+
+      onConfigUpdated(updatedConfig);
+      saveSheetsConfig(updatedConfig);
+
+      setSuccessMsg(`¡Hoja de cálculo creada exitosamente en tu Google Drive con las 30 propiedades! ID: ${spreadsheetId}`);
+    } catch (err: any) {
+      console.error('Error al crear Google Sheet:', err);
+      setErrorMsg(err.message || 'Ocurrió un error al crear el archivo en Google Drive.');
+    } finally {
+      setIsCreatingSheet(false);
+    }
+  };
+
   const handleSyncNow = async () => {
     setIsSyncing(true);
     setSuccessMsg(null);
+    setErrorMsg(null);
+
+    const token = getCachedAccessToken();
 
     const updatedConfig: GoogleSheetsConfig = {
       ...sheetsConfig,
@@ -58,7 +123,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
       syncStatus: 'syncing',
     };
 
-    const result = await syncWithGoogleSheets(updatedConfig);
+    const result = await syncWithGoogleSheets(updatedConfig, token);
 
     if (result.success && result.properties) {
       onPropertiesUpdated(result.properties);
@@ -67,6 +132,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
     } else {
       updatedConfig.syncStatus = 'error';
       updatedConfig.errorMessage = result.error || 'No se pudo conectar a la planilla.';
+      setErrorMsg(result.error || 'Error de conexión con la hoja.');
     }
 
     onConfigUpdated(updatedConfig);
@@ -77,8 +143,12 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
   const handleCopyTemplate = () => {
     const csvContent = exportPropertiesToCSV(properties);
     navigator.clipboard.writeText(csvContent);
+    setCopiedTemplate(true);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => {
+      setCopiedTemplate(false);
+      setCopied(false);
+    }, 2500);
   };
 
   const handleDownloadCSV = () => {
@@ -190,29 +260,88 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Estado del Enlace Google Sheets</h3>
+              <h3 className="text-base font-bold text-slate-900">Enlace Directo & Sincronización Google Sheets</h3>
               <p className="text-xs text-slate-500">
                 Última sincronización: {sheetsConfig.lastSyncedAt ? new Date(sheetsConfig.lastSyncedAt).toLocaleTimeString('es-CL') : 'Nunca'}
               </p>
             </div>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold font-mono">
-            Sincronización Habilitada
-          </span>
+          <div className="flex items-center gap-2">
+            {currentUser ? (
+              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg text-xs font-semibold text-slate-700">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="truncate max-w-[160px]">{currentUser.email}</span>
+                <button
+                  onClick={logoutGoogle}
+                  title="Cerrar sesión"
+                  className="text-slate-400 hover:text-rose-600 ml-1"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold font-mono">
+              OAuth & APIs Activas
+            </span>
+          </div>
+        </div>
+
+        {/* Highlight Banner: Instant Google Drive Sheet Creator */}
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border border-emerald-200/80 rounded-xl p-5 space-y-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Integración Directa con Google Drive
+              </div>
+              <h4 className="text-sm font-black text-slate-900">
+                ¿Quieres tu propia Hoja de Google Sheets en tu cuenta de Google Drive?
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                Haz clic abajo para crear automáticamente un archivo nuevo llamado <strong>"Innova Raíces - Inventario de Propiedades"</strong> en tu Google Drive con las 30 propiedades ya cargadas en columnas.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleCreateAutoSheet}
+                disabled={isCreatingSheet}
+                className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {isCreatingSheet ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 text-white" />
+                )}
+                <span>{isCreatingSheet ? 'Creando Hoja en Google Drive...' : 'Crear Mi Google Sheet en Google Drive'}</span>
+              </button>
+
+              {sheetUrl && (
+                <a
+                  href={sheetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Abrir Archivo en Google Drive</span>
+                </a>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Input Google Sheet URL */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-slate-700 block">
-            URL de la Planilla Publicada en Google Sheets (CSV)
+            URL / Enlace Activo de Google Sheets (Tu hoja o publicada)
           </label>
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={sheetUrl}
               onChange={(e) => setSheetUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+              placeholder="https://docs.google.com/spreadsheets/d/1_ViZuuFYt7Gm2LG40887laagIahDkaKHFCAcFkUt8YI/edit"
               className="flex-grow bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-600"
             />
             <button
@@ -226,12 +355,62 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
           </div>
         </div>
 
-        {successMsg && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>{successMsg}</span>
+        {errorMsg && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex items-center gap-2">
+            <X className="w-4 h-4 text-rose-600 flex-shrink-0" />
+            <span>{errorMsg}</span>
           </div>
         )}
+
+        {successMsg && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+            {sheetUrl && (
+              <a
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-emerald-800 underline hover:text-emerald-950 flex items-center gap-1"
+              >
+                Ver en Google Sheets <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Template Guidance Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>¿Cómo poblar las 30 propiedades en tu Google Sheet fácilmente?</span>
+              </h4>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                <strong>Opción 1 (Recomendada):</strong> Presiona <strong>"Descargar CSV (30 Propiedades)"</strong>. Luego en tu Google Sheet ve a <strong>Archivo &gt; Importar &gt; Subir</strong> y selecciona el archivo. ¡Se crearán las filas y columnas automáticamente!<br />
+                <strong>Opción 2:</strong> Presiona <strong>"Copiar Plantilla Completa"</strong>, pégala en la celda <strong>A1</strong> de Google Sheets y si todo queda en una columna, ve a <strong>Datos &gt; Dividir texto en columnas</strong>.
+              </p>
+            </div>
+
+            <button
+              onClick={handleCopyTemplate}
+              className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm flex-shrink-0 transition-all"
+            >
+              {copiedTemplate ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
+              <span>{copiedTemplate ? '¡Copiado! Pégalo en celda A1 de Sheets' : 'Copiar Plantilla Completa'}</span>
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-3">
+            <div className="text-[11px] font-mono text-slate-700 whitespace-nowrap overflow-x-auto">
+              <span className="font-bold text-sky-700">Encabezados en Español soportados: </span>
+              ID • Título • Categoría • Descripción • Imagen_Principal • Video_URL • Fecha_Entrega • Ubicación • Puntos_Destacados • Precio_UF • Gastos_Comunes • Operación • Dormitorios • Baños • M2_Utiles • M2_Totales • Comuna • Región • Estado • Es_Proyecto • Galeria_Imagen_1 ... Galeria_Imagen_10
+            </div>
+          </div>
+        </div>
 
         {/* Action Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
