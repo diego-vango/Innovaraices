@@ -191,6 +191,17 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Componente visual reutilizable para el estado de carga
+  const LoadingCard = () => (
+    <div className="py-24 text-center space-y-4 bg-white border border-slate-200 rounded-2xl shadow-sm my-8">
+      <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto" />
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-slate-900">Cargando propiedades...</h3>
+        <p className="text-xs text-slate-500">Obteniendo catálogo de propiedades y proyectos actualizados en tiempo real.</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans antialiased selection:bg-sky-600 selection:text-white">
       {/* Top Fixed Header */}
@@ -223,105 +234,124 @@ export default function App() {
           </div>
         )}
 
-        {/* Global Loader when fetching properties initially */}
-        {isLoadingProperties && properties.length === 0 ? (
-          <div className="py-24 text-center space-y-4 bg-white border border-slate-200 rounded-2xl shadow-sm my-8">
-            <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto" />
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-900">Cargando propiedades...</h3>
-              <p className="text-xs text-slate-500">Obteniendo catálogo de propiedades y proyectos actualizados en tiempo real.</p>
-            </div>
-          </div>
-        ) : (
+        {/* TAB 1: INICIO (Muestra la portada de inmediato) */}
+        {activeTab === 'inicio' && (
           <>
-            {/* TAB 1: INICIO */}
-            {activeTab === 'inicio' && (
-              <HomeHero
-                properties={properties}
-                onSelectProperty={setSelectedProperty}
-                onScheduleVisit={handleScheduleVisit}
-                setActiveTab={setActiveTab}
-                ufRate={ufData.value}
-              />
+            <HomeHero
+              properties={properties}
+              onSelectProperty={setSelectedProperty}
+              onScheduleVisit={handleScheduleVisit}
+              setActiveTab={setActiveTab}
+              ufRate={ufData.value}
+            />
+
+            {/* Muestra la pantalla de carga más abajo mientras descargan los datos */}
+            {isLoadingProperties && properties.length === 0 && (
+              <LoadingCard />
             )}
+          </>
+        )}
 
         {/* TAB 2: PROPIEDADES */}
         {activeTab === 'propiedades' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                  <Building2 className="w-7 h-7 text-sky-600" />
-                  <span>Catálogo de Propiedades</span>
-                </h1>
-                <p className="text-xs text-slate-500 mt-1">
-                  Buscador avanzado con mapa geolocalizado en tiempo real y consulta directa por WhatsApp.
-                </p>
+          isLoadingProperties && properties.length === 0 ? (
+            <LoadingCard />
+          ) : (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <Building2 className="w-7 h-7 text-sky-600" />
+                    <span>Catálogo de Propiedades</span>
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Buscador avanzado con mapa geolocalizado en tiempo real y consulta directa por WhatsApp.
+                  </p>
+                </div>
+
+                {/* View Switcher */}
+                <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                  <button
+                    onClick={() => setViewMode('split')}
+                    className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
+                      viewMode === 'split' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" /> Divisor
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
+                      viewMode === 'grid' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Grid className="w-3.5 h-3.5" /> Parrilla ({filteredProperties.length})
+                  </button>
+                  <button
+                    onClick={() => setViewMode('map')}
+                    className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
+                      viewMode === 'map' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Map className="w-3.5 h-3.5" /> Mapa
+                  </button>
+                </div>
               </div>
 
-              {/* View Switcher */}
-              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-                <button
-                  onClick={() => setViewMode('split')}
-                  className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    viewMode === 'split' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Layers className="w-3.5 h-3.5" /> Divisor
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    viewMode === 'grid' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Grid className="w-3.5 h-3.5" /> Parrilla ({filteredProperties.length})
-                </button>
-                <button
-                  onClick={() => setViewMode('map')}
-                  className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    viewMode === 'map' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Map className="w-3.5 h-3.5" /> Mapa
-                </button>
-              </div>
-            </div>
+              {/* Filter Bar */}
+              <FilterBar
+                filters={filters}
+                setFilters={setFilters}
+                regions={availableRegions}
+                comunas={availableComunas}
+                onReset={handleResetFilters}
+                totalResults={filteredProperties.length}
+              />
 
-            {/* Filter Bar */}
-            <FilterBar
-              filters={filters}
-              setFilters={setFilters}
-              regions={availableRegions}
-              comunas={availableComunas}
-              onReset={handleResetFilters}
-              totalResults={filteredProperties.length}
-            />
-
-            {filteredProperties.length === 0 ? (
-              <div className="p-12 text-center bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm">
-                <Search className="w-12 h-12 text-slate-400 mx-auto" />
-                <h3 className="text-lg font-bold text-slate-900">No se encontraron propiedades</h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Intenta modificar los filtros de búsqueda o seleccionar una comuna o rango de precio diferente.
-                </p>
-                <button
-                  onClick={handleResetFilters}
-                  className="px-5 py-2.5 rounded-lg bg-sky-600 text-white text-xs font-bold shadow-sm hover:bg-sky-700 transition-colors"
-                >
-                  Restablecer Filtros
-                </button>
-              </div>
-            ) : viewMode === 'split' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className="lg:col-span-5 lg:sticky lg:top-24">
+              {filteredProperties.length === 0 ? (
+                <div className="p-12 text-center bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm">
+                  <Search className="w-12 h-12 text-slate-400 mx-auto" />
+                  <h3 className="text-lg font-bold text-slate-900">No se encontraron propiedades</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Intenta modificar los filtros de búsqueda o seleccionar una comuna o rango de precio diferente.
+                  </p>
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-5 py-2.5 rounded-lg bg-sky-600 text-white text-xs font-bold shadow-sm hover:bg-sky-700 transition-colors"
+                  >
+                    Restablecer Filtros
+                  </button>
+                </div>
+              ) : viewMode === 'split' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-5 lg:sticky lg:top-24">
+                    <InteractiveMap
+                      properties={filteredProperties}
+                      onSelectProperty={setSelectedProperty}
+                      heightClass="h-[600px]"
+                    />
+                  </div>
+                  <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {filteredProperties.map(property => (
+                      <PropertyCard
+                        key={property.id}
+                        property={property}
+                        onSelect={setSelectedProperty}
+                        onScheduleVisit={handleScheduleVisit}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : viewMode === 'map' ? (
+                <div className="space-y-4">
                   <InteractiveMap
                     properties={filteredProperties}
                     onSelectProperty={setSelectedProperty}
-                    heightClass="h-[600px]"
+                    heightClass="h-[680px]"
                   />
                 </div>
-                <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProperties.map(property => (
                     <PropertyCard
                       key={property.id}
@@ -331,18 +361,29 @@ export default function App() {
                     />
                   ))}
                 </div>
+              )}
+            </div>
+          )
+        )}
+
+        {/* TAB 3: PROYECTOS NUEVOS */}
+        {activeTab === 'proyectos' && (
+          isLoadingProperties && properties.length === 0 ? (
+            <LoadingCard />
+          ) : (
+            <div className="space-y-8 py-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-white shadow-sm">
+                <span className="px-3 py-1 rounded bg-sky-600 text-white text-xs font-bold uppercase tracking-wider mb-2 inline-block">
+                  Nuevos Desarrollos Inmobiliarios
+                </span>
+                <h1 className="text-3xl font-black tracking-tight">Proyectos en Verde y Blancos</h1>
+                <p className="text-slate-300 text-sm mt-2 max-w-2xl">
+                  Invierte con plusvalía y facilidades de pago del pie en cuotas.
+                </p>
               </div>
-            ) : viewMode === 'map' ? (
-              <div className="space-y-4">
-                <InteractiveMap
-                  properties={filteredProperties}
-                  onSelectProperty={setSelectedProperty}
-                  heightClass="h-[680px]"
-                />
-              </div>
-            ) : (
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProperties.map(property => (
+                {properties.filter(p => p.isProject).map(property => (
                   <PropertyCard
                     key={property.id}
                     property={property}
@@ -351,34 +392,8 @@ export default function App() {
                   />
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 3: PROYECTOS NUEVOS */}
-        {activeTab === 'proyectos' && (
-          <div className="space-y-8 py-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-white shadow-sm">
-              <span className="px-3 py-1 rounded bg-sky-600 text-white text-xs font-bold uppercase tracking-wider mb-2 inline-block">
-                Nuevos Desarrollos Inmobiliarios
-              </span>
-              <h1 className="text-3xl font-black tracking-tight">Proyectos en Verde y Blancos</h1>
-              <p className="text-slate-300 text-sm mt-2 max-w-2xl">
-                Invierte con plusvalía y facilidades de pago del pie en cuotas.
-              </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.filter(p => p.isProject).map(property => (
-                <PropertyCard
-                  key={property.id}
-                  property={property}
-                  onSelect={setSelectedProperty}
-                  onScheduleVisit={handleScheduleVisit}
-                />
-              ))}
-            </div>
-          </div>
+          )
         )}
 
         {/* TAB 4: AGENDAR CITA VIRTUAL */}
@@ -393,8 +408,6 @@ export default function App() {
         {/* TAB 5: CONTACTO */}
         {activeTab === 'contacto' && (
           <GeneralContactForm />
-        )}
-          </>
         )}
       </main>
 
